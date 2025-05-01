@@ -162,29 +162,43 @@ st.text(classification_report(y_test, y_pred))
 
 st.sidebar.title(" Simulation de prédiction")
 
-# Saisie utilisateur
-secteur_input = st.sidebar.selectbox("Secteur", sorted(df["SecteurActivité"].dropna().unique()))
-tranche_input = st.sidebar.selectbox("Tranche d’effectifs", sorted(df["TrancheEffectifs"].dropna().unique()))
-classification_input = st.sidebar.selectbox("Classification", sorted(df["Classification"].dropna().unique()))
+# 📌 Saisie utilisateur (avec "Tous" uniquement)
+secteurs = ["Tous"] + sorted(df["SecteurActivité"].dropna().unique().tolist())
+secteur_input = st.sidebar.selectbox("Secteur", secteurs)
+
+tranches = ["Tous"] + sorted(df["TrancheEffectifs"].dropna().unique().tolist())
+tranche_input = st.sidebar.selectbox("Tranche d’effectifs", tranches)
+
+classifications = ["Tous"] + sorted(df["Classification"].dropna().unique().tolist())
+classification_input = st.sidebar.selectbox("Classification", classifications)
+
 score_input = st.sidebar.number_input("Score sectoriel", value=float(df["Score sectoriel"].median()))
 valeur_input = st.sidebar.number_input("Valeur ajoutée (€)", value=float(df["Valeur ajaoutée"].median()))
 creations_input = st.sidebar.number_input("Nombre de créations dans les 3 mois", value=0)
-covid_input = st.sidebar.selectbox("Impact COVID-19", options=[0, 1], format_func=lambda x: "Oui" if x == 1 else "Non")
 
-# Bouton de prédiction
-if st.sidebar.button(" Lancer la prédiction"):
+covid_input = st.sidebar.selectbox(
+    "Impact COVID-19",
+    options=["Impacte Covid", "Hors Covid"]
+)
 
-    # Créer un DataFrame avec 1 lign
-    input_df = pd.DataFrame({
-        "Score sectoriel": [score_input],
-        "Valeur ajaoutée": [valeur_input],
-        "Nombre de créations dans les 3 mois": [creations_input],
-        "coronavirus": [covid_input],
-        "SecteurActivité_" + secteur_input: [1],
-        "TrancheEffectifs_" + tranche_input: [1],
-        "Classification_" + classification_input: [1]
-    })
+# ✅ Bouton de prédiction
+if st.sidebar.button("🚀 Lancer la prédiction"):
 
+    if "Aucun" in [secteur_input, tranche_input, classification_input, covid_input]:
+        st.warning("⚠️ Merci de sélectionner toutes les options avant de lancer la prédiction.")
+    else:
+        covid_val = 1 if covid_input == "Oui" else 0
+
+        # Construction du DataFrame utilisateur
+        input_df = pd.DataFrame({
+            "Score sectoriel": [score_input],
+            "Valeur ajaoutée": [valeur_input],
+            "Nombre de créations dans les 3 mois": [creations_input],
+            "coronavirus": [covid_val],
+            "SecteurActivité_" + secteur_input: [1],
+            "TrancheEffectifs_" + tranche_input: [1],
+            "Classification_" + classification_input: [1]
+        })
     # Ajouter les colonnes manquantes (comme dans X)
     for col in X.columns:
         if col not in input_df.columns:
@@ -196,42 +210,40 @@ if st.sidebar.button(" Lancer la prédiction"):
     # Prédiction
     prediction = model.predict(input_df)[0]
     proba = model.predict_proba(input_df)[0][1]
+    # Affichage clair de la probabilité prédite
+    st.success(f"📈 Probabilité prédite de défaut : **{proba:.2%}**")
+    st.success(f" Résultat : {'Le risque de defaut est : élevé' if prediction == 1 else 'Le risque de defaut est : faible'}")
 
-    st.success(f" Résultat : {'Risque élevé' if prediction == 1 else 'Risque faible'} (probabilité : {proba:.2%})")
-
-nb_defaillantes = df["Risque_Eleve"].sum()
-nb_total = len(df)
-pourcentage = nb_defaillantes / nb_total * 100
-
-st.subheader(" Entreprises à risque élevé détectées")
-st.write(f"Nombre d'entreprises classées à **risque élevé** : `{nb_defaillantes}` sur `{nb_total}`")
-st.write(f"Ce qui représente environ **{pourcentage:.2f}%** des entreprises.")
-
-st.sidebar.title("Filtres dynamiques")
-
-secteur_filter = st.sidebar.selectbox("Filtrer par secteur", ["Tous"] + sorted(df["SecteurActivité"].dropna().unique()))
-tranche_filter = st.sidebar.selectbox("Filtrer par tranche d'effectifs", ["Tous"] + sorted(df["TrancheEffectifs"].dropna().unique()))
-classification_filter = st.sidebar.selectbox("Filtrer par classification", ["Tous"] + sorted(df["Classification"].dropna().unique()))
 
 df_filtré = df.copy()
 
-if secteur_filter != "Tous":
-    df_filtré = df_filtré[df_filtré["SecteurActivité"] == secteur_filter]
+if secteur_input != "Tous":
+    df_filtré = df_filtré[df_filtré["SecteurActivité"] == secteur_input]
 
-if tranche_filter != "Tous":
-    df_filtré = df_filtré[df_filtré["TrancheEffectifs"] == tranche_filter]
+if tranche_input != "Tous":
+    df_filtré = df_filtré[df_filtré["TrancheEffectifs"] == tranche_input]
 
-if classification_filter != "Tous":
-    df_filtré = df_filtré[df_filtré["Classification"] == classification_filter]
+if classification_input != "Tous":
+    df_filtré = df_filtré[df_filtré["Classification"] == classification_input]
+
+if covid_input == "Impacte Covid":
+    df_filtré = df_filtré[df_filtré["coronavirus"] == 1]
+elif covid_input == "Hors Covid":
+    df_filtré = df_filtré[df_filtré["coronavirus"] == 0]
 
 
-st.subheader("📌 Entreprises à risque élevé détectées (filtres appliqués)")
-
-nb_defaillantes = df_filtré["Risque_Eleve"].sum()
 nb_total = len(df_filtré)
-pourcentage = (nb_defaillantes / nb_total * 100) if nb_total > 0 else 0
 
-st.write(f"Nombre d'entreprises à **risque élevé** : `{nb_defaillantes}` sur `{nb_total}`")
-st.write(f"Ce qui représente **{pourcentage:.2f}%** des entreprises filtrées.")
+nb_defaillantes = df_filtré[df_filtré["Risque_Eleve"] == 1].shape[0]
+pourcentage_defaillantes = (nb_defaillantes / nb_total) * 100 if nb_total > 0 else 0
 
-st.dataframe(df_filtré.head(20))
+nb_faibles = df_filtré[df_filtré["Risque_Eleve"] == 0].shape[0]
+pourcentage_faibles = (nb_faibles / nb_total) * 100 if nb_total > 0 else 0
+
+st.subheader("📌 Entreprises à risque élevé détectées")
+st.write(f"Nombre : `{nb_defaillantes}` sur `{nb_total}`")
+st.write(f"Pourcentage : **{pourcentage_defaillantes:.2f}%**")
+
+st.subheader("📌 Entreprises à risque faible détectées")
+st.write(f"Nombre : `{nb_faibles}` sur `{nb_total}`")
+st.write(f"Pourcentage : **{pourcentage_faibles:.2f}%**")
