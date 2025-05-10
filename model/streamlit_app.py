@@ -18,11 +18,11 @@ df = pd.read_csv(file_path, encoding='utf-8')
 df = df.loc[:, ~df.columns.duplicated()]  # Supprimer les colonnes dupliquées
 
 #  Titre principal
-st.title(" Analyse des défaillances d'entreprises")
+st.title(" Analyse et préduction des défaillances d'entreprises")
 
 #  Sidebar : Activer ou désactiver les filtres
-st.sidebar.title(" Filtres interactifs")
-use_filters = st.sidebar.checkbox(" Activer les filtres", value=True)
+st.sidebar.title(" Filtres interactifs ")
+use_filters = st.sidebar.checkbox(" Activer les filtres", value=False)
 
 if use_filters:
     secteur_choisi = st.sidebar.selectbox("Secteur d'activité", sorted(df["SecteurActivité"].dropna().unique()))
@@ -51,7 +51,7 @@ else:
 
 #  Aperçu des données
 st.subheader(" Données affichées")
-st.dataframe(df_affiche.head(20))
+st.dataframe(df_affiche.head(10))
 
 #  Statistiques de base
 st.subheader(" Types de colonnes")
@@ -169,9 +169,6 @@ secteur_input = st.sidebar.selectbox("Secteur", secteurs)
 tranches = ["Tous"] + sorted(df["TrancheEffectifs"].dropna().unique().tolist())
 tranche_input = st.sidebar.selectbox("Tranche d’effectifs", tranches)
 
-classifications = ["Tous"] + sorted(df["Classification"].dropna().unique().tolist())
-classification_input = st.sidebar.selectbox("Classification", classifications)
-
 score_input = st.sidebar.number_input("Score sectoriel", value=float(df["Score sectoriel"].median()))
 valeur_input = st.sidebar.number_input("Valeur ajoutée (€)", value=float(df["Valeur ajaoutée"].median()))
 creations_input = st.sidebar.number_input("Nombre de créations dans les 3 mois", value=0)
@@ -184,7 +181,7 @@ covid_input = st.sidebar.selectbox(
 # ✅ Bouton de prédiction
 if st.sidebar.button("🚀 Lancer la prédiction"):
 
-    if "Aucun" in [secteur_input, tranche_input, classification_input, covid_input]:
+    if "Aucun" in [secteur_input, tranche_input, covid_input]:
         st.warning("⚠️ Merci de sélectionner toutes les options avant de lancer la prédiction.")
     else:
         covid_val = 1 if covid_input == "Oui" else 0
@@ -197,7 +194,6 @@ if st.sidebar.button("🚀 Lancer la prédiction"):
             "coronavirus": [covid_val],
             "SecteurActivité_" + secteur_input: [1],
             "TrancheEffectifs_" + tranche_input: [1],
-            "Classification_" + classification_input: [1]
         })
     # Ajouter les colonnes manquantes (comme dans X)
     for col in X.columns:
@@ -222,9 +218,6 @@ if secteur_input != "Tous":
 
 if tranche_input != "Tous":
     df_filtré = df_filtré[df_filtré["TrancheEffectifs"] == tranche_input]
-
-if classification_input != "Tous":
-    df_filtré = df_filtré[df_filtré["Classification"] == classification_input]
 
 if covid_input == "Impacte Covid":
     df_filtré = df_filtré[df_filtré["coronavirus"] == 1]
