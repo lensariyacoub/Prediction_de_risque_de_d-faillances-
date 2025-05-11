@@ -160,7 +160,7 @@ st.write(confusion_matrix(y_test, y_pred))
 st.write(" **Rapport de classification**")
 st.text(classification_report(y_test, y_pred))
 
-st.sidebar.title(" Simulation de prédiction")
+st.sidebar.title(" Choisissez un profil d’entreprise")
 
 # 📌 Saisie utilisateur (avec "Tous" uniquement)
 secteurs = ["Tous"] + sorted(df["SecteurActivité"].dropna().unique().tolist())
